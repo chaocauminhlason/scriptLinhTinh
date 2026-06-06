@@ -98,3 +98,37 @@ return function(Window, Utils)
     coordText.Size = UDim2.new(0, 160, 0, 26)
     coordText.Position = UDim2.new(0.78, 0, 0.05, 0)
     coordText.BackgroundTransparency = 1
+    coordText.TextColor3 = Color3.fromRGB(0, 255, 0)
+    coordText.Font = Enum.Font.Code
+    coordText.TextSize = 16
+    coordText.TextXAlignment = Enum.TextXAlignment.Left
+    coordText.TextYAlignment = Enum.TextYAlignment.Top
+    coordText.Text = "0 / 0 / 0"
+    coordText.Active = true
+
+    RunService.RenderStepped:Connect(function()
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            local p = char.HumanoidRootPart.Position
+            coordText.Text = string.format("📍 %.1f / %.1f / %.1f", p.X, p.Y, p.Z)
+        end
+    end)
+
+    local dragging = false
+    local dragStart, startPos
+
+    coordText.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true; dragStart = input.Position; startPos = coordText.Position
+        end
+    end)
+    coordText.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
+            local delta = input.Position - dragStart
+            coordText.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+end
