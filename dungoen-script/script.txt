@@ -175,14 +175,24 @@ local function getRecoverPosition()
 end
 
 -- ====================================================================
--- HỆ THỐNG THÔNG BÁO DISCORD (WEBHOOK)
+-- HỆ THỐNG THÔNG BÁO DISCORD (WEBHOOK TỰ ĐỘNG LƯU SESSION)
 -- ====================================================================
+<<<<<<< HEAD
+local currentWebhookURL = ""
+local webhookEnabled = false
+=======
 local WebhookURL = "" 
+>>>>>>> 52fba5fdea367c3c2734489270e33a9a303a6250
 
 local function SendDiscordNotification(message)
+    -- Kiểm tra nếu tính năng tắt hoặc URL không hợp lệ thì hủy gửi
+    if not webhookEnabled or currentWebhookURL == "" or not string.find(currentWebhookURL, "api/webhooks") then 
+        return 
+    end
+
     local req = (syn and syn.request) or (http and http.request) or http_request or fluxus and fluxus.request or request
     
-    if req and WebhookURL ~= "THAY_LINK_WEBHOOK_CỦA_BẠN_VÀO_ĐÂY" then
+    if req then
         local data = {
             ["content"] = "",
             ["embeds"] = {
@@ -197,7 +207,7 @@ local function SendDiscordNotification(message)
         }
         
         req({ 
-            Url = WebhookURL, 
+            Url = currentWebhookURL, 
             Method = "POST", 
             Headers = { ["Content-Type"] = "application/json" }, 
             Body = HttpService:JSONEncode(data) 
@@ -337,7 +347,7 @@ MainTab:CreateToggle({
 MainTab:CreateSection("Chat '!f' để kích hoạt follow từ xa.")
 
 -- TAB 2: R-Game (TÍCH HỢP MỚI & LỌC VIP)
-local CamTab = Window:CreateTab("Bắt Quái (CAM)", 4483345998)
+local CamTab = Window:CreateTab("auto catch", 4483345998)
 
 CamTab:CreateSection("--- THIẾT LẬP CƠ BẢN ---")
 
@@ -539,7 +549,7 @@ BossTab:CreateButton({
         end
     end,
 })
--- TAB 3: AUTO EXIT HẦM NGỤC
+-- TAB 4: AUTO EXIT HẦM NGỤC
 local DungeonTab = Window:CreateTab("Hầm Ngục", 4483362458)
 local DungeonStatus = DungeonTab:CreateLabel("Trạng thái Auto Exit: Đang tắt")
 
@@ -577,7 +587,7 @@ DungeonTab:CreateToggle({
     end 
 })
 
--- TAB 4: TIỆN ÍCH & TỐI ƯU
+-- TAB 5: TIỆN ÍCH & TỐI ƯU
 local OptimizationTab = Window:CreateTab("Tối Ưu", 4483345998)
 
 OptimizationTab:CreateToggle({ 
@@ -657,6 +667,46 @@ ServerTab:CreateButton({
     end 
 })
 
+-- ====================================================================
+-- TAB 6: WEBHOOK & THÔNG BÁO
+-- ====================================================================
+local WebhookTab = Window:CreateTab("Webhook", 4483362458)
+
+WebhookTab:CreateSection("--- THIẾT LẬP DISCORD WEBHOOK ---")
+
+WebhookTab:CreateToggle({
+    Name = "Bật/Tắt Thông Báo Discord",
+    CurrentValue = false,
+    Flag = "WebhookToggleConfig", -- ĐẶT FLAG ĐỂ LƯU SESSION
+    Callback = function(Value)
+        webhookEnabled = Value
+    end,
+})
+
+WebhookTab:CreateInput({
+    Name = "Link Discord Webhook",
+    PlaceholderText = "Dán link Webhook của bạn vào đây...",
+    RemoveTextAfterFocusLost = false,
+    Flag = "WebhookUrlConfig", -- ĐẶT FLAG ĐỂ LƯU SESSION
+    Callback = function(Text)
+        currentWebhookURL = Text
+    end,
+})
+
+WebhookTab:CreateButton({
+    Name = "Gửi Thông Báo Test (Kiểm tra)",
+    Callback = function()
+        if currentWebhookURL == "" then
+            Rayfield:Notify({Title = "Lỗi", Content = "Vui lòng nhập Link Webhook trước!", Duration = 3})
+        elseif not string.find(currentWebhookURL, "api/webhooks") then
+            Rayfield:Notify({Title = "Lỗi", Content = "Link Webhook không hợp lệ!", Duration = 3})
+        else
+            SendDiscordNotification("🛠️ Test Webhook thành công! Hệ thống R-Client Pro đang hoạt động tốt.")
+            Rayfield:Notify({Title = "Thành công", Content = "Đã gửi thông báo test qua Discord!", Duration = 3})
+        end
+    end,
+})
+
 -- ==========================================
 -- [[ LOGIC CHẠY NGẦM R-Game (RGame) ]]
 -- ==========================================
@@ -678,7 +728,7 @@ task.spawn(function()
 end)
 
 -- ====================================================================
--- CAM: Auto Catch (Phiên bản Chuẩn Giao Thức Máy Chủ - Tích hợp Complete)
+-- R-Game: Auto Catch (Phiên bản Chuẩn Giao Thức Máy Chủ - Tích hợp Complete)
 -- ====================================================================
 task.spawn(function()
     while task.wait(0.5) do
@@ -746,7 +796,7 @@ task.spawn(function()
 end)
 
 -- ====================================================================
--- CAM: AUTO HEAL (BẢN CHUẨN - TRANG BỊ LOG F9 VÀ CHỐNG KẸT)
+-- R-Game: AUTO HEAL (BẢN CHUẨN - TRANG BỊ LOG F9 VÀ CHỐNG KẸT)
 -- ====================================================================
 task.spawn(function()
     while task.wait(1) do
@@ -1120,3 +1170,9 @@ UserInputService.InputChanged:Connect(function(input)
 end)
 
 Rayfield:Notify({ Title = "Thành Công!", Content = "Bản Tool v2.0.0 (Tích hợp RGame) đã sẵn sàng!", Duration = 5 })
+<<<<<<< HEAD
+-- Load toàn bộ cấu hình đã lưu (Bao gồm Link Webhook, trạng thái Toggle, v.v.)
+Rayfield:LoadConfiguration()
+=======
+
+>>>>>>> 52fba5fdea367c3c2734489270e33a9a303a6250
