@@ -177,12 +177,8 @@ end
 -- ====================================================================
 -- HỆ THỐNG THÔNG BÁO DISCORD (WEBHOOK TỰ ĐỘNG LƯU SESSION)
 -- ====================================================================
-<<<<<<< HEAD
 local currentWebhookURL = ""
 local webhookEnabled = false
-=======
-local WebhookURL = "" 
->>>>>>> 52fba5fdea367c3c2734489270e33a9a303a6250
 
 local function SendDiscordNotification(message)
     -- Kiểm tra nếu tính năng tắt hoặc URL không hợp lệ thì hủy gửi
@@ -1170,9 +1166,5 @@ UserInputService.InputChanged:Connect(function(input)
 end)
 
 Rayfield:Notify({ Title = "Thành Công!", Content = "Bản Tool v2.0.0 (Tích hợp RGame) đã sẵn sàng!", Duration = 5 })
-<<<<<<< HEAD
 -- Load toàn bộ cấu hình đã lưu (Bao gồm Link Webhook, trạng thái Toggle, v.v.)
 Rayfield:LoadConfiguration()
-=======
-
->>>>>>> 52fba5fdea367c3c2734489270e33a9a303a6250
