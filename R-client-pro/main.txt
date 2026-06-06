@@ -11,17 +11,44 @@ local Window = Rayfield:CreateWindow({
     KeySystem = false
 })
 
--- Kéo các file từ GitHub của bạn về và chạy ngầm
-local Utils = loadstring(game:HttpGet('https://raw.githubusercontent.com/chaocauminhlason/scripts-linh-tinh/main/core/utilities.txt'))()
-local WebhookModule = loadstring(game:HttpGet('https://raw.githubusercontent.com/chaocauminhlason/scripts-linh-tinh/main/core/webhook.txt'))()
+-- Hàm tải file an toàn (Chống trắng màn hình khi link lỗi)
+local function LoadModuleSafe(url)
+    local success, module = pcall(function()
+        return loadstring(game:HttpGet(url))()
+    end)
+    if not success then
+        warn("❌ Lỗi tải module: " .. url)
+        Rayfield:Notify({Title = "Lỗi Link Tải", Content = "Không tìm thấy: " .. string.match(url, "([^/]+)$"), Duration = 5})
+        return nil
+    end
+    return module
+end
 
-WebhookModule.InitTab(Window, Rayfield)
+-- 1. Kéo các file Core về trước
+local Utils = LoadModuleSafe('https://raw.githubusercontent.com/chaocauminhlason/scripts-linh-tinh/main/R-client-pro/core/utilities.txt')
+local WebhookModule = LoadModuleSafe('https://raw.githubusercontent.com/chaocauminhlason/scripts-linh-tinh/main/R-client-pro/core/webhook.txt')
 
-loadstring(game:HttpGet('https://raw.githubusercontent.com/chaocauminhlason/scripts-linh-tinh/main/features/tracker.txt'))()(Window, Utils)
-loadstring(game:HttpGet('https://raw.githubusercontent.com/chaocauminhlason/scripts-linh-tinh/main/features/rgame_farm.txt'))()(Window, Utils)
-loadstring(game:HttpGet('https://raw.githubusercontent.com/chaocauminhlason/scripts-linh-tinh/main/features/boss_hunt.txt'))()(Window, Utils)
-loadstring(game:HttpGet('https://raw.githubusercontent.com/chaocauminhlason/scripts-linh-tinh/main/features/dungeon_auto.txt'))()(Window, Utils, WebhookModule)
-loadstring(game:HttpGet('https://raw.githubusercontent.com/chaocauminhlason/scripts-linh-tinh/main/features/optimization.txt'))()(Window, Utils)
+if WebhookModule then
+    WebhookModule.InitTab(Window, Rayfield)
+end
+
+-- 2. Kéo các Features (Đã sửa lại link chuẩn)
+if Utils then
+    local tracker = loadstring(game:HttpGet('https://raw.githubusercontent.com/chaocauminhlason/scripts-linh-tinh/main/R-client-pro/features/tracker.txt'))
+    if tracker then tracker()(Window, Utils) end
+
+    local rgame = loadstring(game:HttpGet('https://raw.githubusercontent.com/chaocauminhlason/scripts-linh-tinh/main/R-client-pro/features/rgame_farm.txt'))
+    if rgame then rgame()(Window, Utils) end
+
+    local boss = loadstring(game:HttpGet('https://raw.githubusercontent.com/chaocauminhlason/scripts-linh-tinh/main/R-client-pro/features/boss_hunt.txt'))
+    if boss then boss()(Window, Utils) end
+
+    local dungeon = loadstring(game:HttpGet('https://raw.githubusercontent.com/chaocauminhlason/scripts-linh-tinh/main/R-client-pro/features/auto_dungeon.txt'))
+    if dungeon and WebhookModule then dungeon()(Window, Utils, WebhookModule) end
+
+    local optimize = loadstring(game:HttpGet('https://raw.githubusercontent.com/chaocauminhlason/scripts-linh-tinh/main/R-client-pro/features/optimization.txt'))
+    if optimize then optimize()(Window, Utils) end
+end
 
 Rayfield:LoadConfiguration()
 Rayfield:Notify({ Title = "Thành Công!", Content = "Hệ thống R-Client Pro đã nạp đầy đủ Modules!", Duration = 5 })
