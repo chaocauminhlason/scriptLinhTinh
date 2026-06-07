@@ -157,7 +157,7 @@ return function(Window, Utils, WebhookModule)
                     end
                 else 
                     dungeonStuckTimer = 0 
-                    humanoid:MoveTo(hrp.Position)
+                    
                     if humanoid.Sit then
                         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.M, false, game) 
                         task.wait() 
