@@ -1,5 +1,5 @@
 -- ====================================================================
--- MODULE: DUNGEON AUTO (TÍCH HỢP TỐI ƯU PHÍM M & AUTO EXIT)
+-- MODULE: DUNGEON AUTO (TÍCH HỢP TỐI ƯU PHÍM M, AUTO EXIT & JOIN)
 -- ====================================================================
 return function(Window, Utils, WebhookModule)
     local Players = game:GetService("Players")
@@ -154,16 +154,13 @@ return function(Window, Utils, WebhookModule)
                     -- KHÔNG TÌM THẤY QUÁI (PHÒNG TRỐNG)
                     dungeonStuckTimer = 0 
                     
-                    -- 1. Ép nhân vật đứng im khi phòng đã sạch quái
                     humanoid:MoveTo(hrp.Position)
                     
-                    -- 2. Kiểm tra nếu đang bị kẹt trên thú (Trạng thái Sit = true) thì ép thu thú lại
                     if humanoid.Sit then
                         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.M, false, game) 
                         task.wait() 
                         VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.M, false, game)
                         
-                        -- Backup: Ép nhân vật nhảy lên để rớt khỏi thú đề phòng phím M bị delay
                         task.wait(0.2)
                         humanoid.Jump = true 
                     end
@@ -187,6 +184,23 @@ return function(Window, Utils, WebhookModule)
                         task.spawn(SafeExitRoutine)
                     end
                 else stage20ClockStarted = false; autoExitTriggered = false end
+            end
+
+            -- [3] LOGIC AUTO JOIN OTHERS (Đã khôi phục)
+            if autoJoinOthersEnabled then
+                pcall(function()
+                    local mainGui = playerGui:FindFirstChild("MainGui")
+                    if mainGui and mainGui:FindFirstChild("ScreenGui") then
+                        -- Thường tên giao diện xin vào phòng là EnterLabView hoặc InviteView
+                        local enterLabView = mainGui.ScreenGui:FindFirstChild("EnterLabView")
+                        if enterLabView and enterLabView.Visible then
+                            local btOk = enterLabView:FindFirstChild("BtOk") or enterLabView:FindFirstChild("BtConfirm")
+                            if btOk and btOk.AbsoluteSize.X > 0 then
+                                Utils.ClickButtonExact(btOk, "Nút Xác nhận vào phòng")
+                            end
+                        end
+                    end
+                end)
             end
         end
     end)

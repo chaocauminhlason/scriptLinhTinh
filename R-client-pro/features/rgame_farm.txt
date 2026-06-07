@@ -1,5 +1,5 @@
 -- ====================================================================
--- MODULE: R-GAME (AUTO BẮT, ĐÁNH, HỒI MÁU)
+-- MODULE: R-GAME (AUTO BẮT, ĐÁNH, HỒI MÁU) - ĐÃ FIX LOGIC LỌC TÊN
 -- ====================================================================
 return function(Window, Utils)
     local Players = game:GetService("Players")
@@ -17,9 +17,40 @@ return function(Window, Utils)
         targetMonsterNames = {}
     }
 
-    -- Tải API của Game
     local MonsterSystem = nil
     pcall(function() MonsterSystem = require(ReplicatedStorage.CommonLogic.Monster.MonsterSystem) end)
+
+    -- Bộ đệm tên quái (Chống lag khi phải check file config liên tục)
+    local MonsterNameCache = {}
+    local function GetCachedMonsterName(monster)
+        local tmplId = monster:GetAttribute("TmplId")
+        if not tmplId then return monster.Name end
+        
+        if MonsterNameCache[tmplId] then return MonsterNameCache[tmplId] end
+        
+        local MonsterConfigFolder = ReplicatedStorage:FindFirstChild("CommonConfig") and ReplicatedStorage.CommonConfig:FindFirstChild("Monster")
+        if MonsterConfigFolder then
+            local configFile = MonsterConfigFolder:FindFirstChild("Monster" .. tostring(tmplId))
+            if configFile then
+                local success, configData = pcall(require, configFile)
+                if success and type(configData) == "table" then
+                    local realName = configData.Name or monster.Name
+                    MonsterNameCache[tmplId] = realName
+                    return realName
+                end
+            end
+        end
+        return monster.Name
+    end
+
+    -- Hàm kiểm tra xem quái có nằm trong danh sách ưu tiên không
+    local function IsMonsterInFilter(monster)
+        if not camSettings.targetMonsterNames or #camSettings.targetMonsterNames == 0 or camSettings.targetMonsterNames[1] == "" then
+            return true -- Nếu không chọn gì -> Bắt tất cả
+        end
+        local realName = GetCachedMonsterName(monster)
+        return table.find(camSettings.targetMonsterNames, realName) ~= nil
+    end
 
     -- ==========================================
     -- GIAO DIỆN UI
@@ -32,32 +63,30 @@ return function(Window, Utils)
     CamTab:CreateToggle({ Name = "Tự Động Hồi Máu Pet", CurrentValue = false, Flag = "CamAutoHeal", Callback = function(V) camSettings.autoHeal = V end })
 
     CamTab:CreateSection("--- LỌC QUÁI THEO TÊN ---")
-    local ScrapedMonsters = {} 
     local MonsterDropdown = CamTab:CreateDropdown({
-        Name = "Chọn Quái Ưu Tiên", Options = {"(Trống)"}, CurrentOption = {""}, MultipleOptions = true, Flag = "TargetMonstersDropdown",
-        Callback = function(Options) camSettings.targetMonsterNames = Options end,
+        Name = "Chọn Quái Ưu Tiên (Trống = Bắt Tất Cả)", 
+        Options = {"(Trống)"}, 
+        CurrentOption = {""}, 
+        MultipleOptions = true, 
+        Flag = "TargetMonstersDropdown",
+        Callback = function(Options) 
+            camSettings.targetMonsterNames = Options 
+        end,
     })
 
     CamTab:CreateButton({
         Name = "🔄 Quét Quái Trên Map",
         Callback = function()
             local monstersFolder = Workspace:FindFirstChild("Monsters")
-            local MonsterConfigFolder = ReplicatedStorage:FindFirstChild("CommonConfig") and ReplicatedStorage.CommonConfig:FindFirstChild("Monster")
-            if not monstersFolder or not MonsterConfigFolder then return end
+            if not monstersFolder then return end
             
             local foundNames = {}
             local dict = {} 
             for _, monster in pairs(monstersFolder:GetChildren()) do
-                local tmplId = monster:GetAttribute("TmplId")
-                if tmplId then
-                    local configFile = MonsterConfigFolder:FindFirstChild("Monster" .. tostring(tmplId))
-                    if configFile and configFile:IsA("ModuleScript") then
-                        local success, configData = pcall(require, configFile)
-                        if success and type(configData) == "table" then
-                            local realName = configData.Name or monster.Name
-                            if not dict[realName] then dict[realName] = true; table.insert(foundNames, realName) end
-                        end
-                    end
+                local realName = GetCachedMonsterName(monster)
+                if realName and not dict[realName] then 
+                    dict[realName] = true
+                    table.insert(foundNames, realName) 
                 end
             end
             if #foundNames > 0 then
@@ -75,8 +104,10 @@ return function(Window, Utils)
             local monstersFolder = Workspace:FindFirstChild("Monsters")
             if camSettings.autoAttack and not camSettings.isHealing and monstersFolder then
                 for _, monster in pairs(monstersFolder:GetChildren()) do
-                    local id = tonumber(monster.Name:match("Monster_(%d+)"))
-                    if id and MonsterSystem then pcall(MonsterSystem.ClientAttackMonster, id) end
+                    if IsMonsterInFilter(monster) then
+                        local id = tonumber(monster.Name:match("Monster_(%d+)"))
+                        if id and MonsterSystem then pcall(MonsterSystem.ClientAttackMonster, id) end
+                    end
                 end
             end
         end
@@ -94,13 +125,15 @@ return function(Window, Utils)
                         local targetCatch, closestDist = nil, math.huge
                         for _, monster in pairs(monstersFolder:GetChildren()) do
                             if monster:IsA("BasePart") or monster:IsA("Model") then
-                                local id = tonumber(monster.Name:match("Monster_(%d+)"))
-                                if id then
-                                    local catchTaken = monster:GetAttribute("CatchTakenPlayerId")
-                                    if not catchTaken or catchTaken == playerId then
-                                        local pos = monster:IsA("Model") and monster.PrimaryPart and monster.PrimaryPart.Position or monster.Position
-                                        local dist = (pos - hrp.Position).Magnitude
-                                        if dist < closestDist then closestDist = dist; targetCatch = monster end
+                                if IsMonsterInFilter(monster) then
+                                    local id = tonumber(monster.Name:match("Monster_(%d+)"))
+                                    if id then
+                                        local catchTaken = monster:GetAttribute("CatchTakenPlayerId")
+                                        if not catchTaken or catchTaken == playerId then
+                                            local pos = monster:IsA("Model") and monster.PrimaryPart and monster.PrimaryPart.Position or monster.Position
+                                            local dist = (pos - hrp.Position).Magnitude
+                                            if dist < closestDist then closestDist = dist; targetCatch = monster end
+                                        end
                                     end
                                 end
                             end
