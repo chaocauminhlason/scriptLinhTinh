@@ -2,6 +2,8 @@
 -- MODULE: DUNGEON AUTO (TÍCH HỢP TỐI ƯU PHÍM M, AUTO EXIT & JOIN GỐC)
 -- BẢN FIX CUỐI: TẬN DỤNG CƠ CHẾ CLICK QUÁI TỰ ĐÁP ĐẤT CỦA GAME
 -- ====================================================================
+local currentStageMemory = ""
+local hasClaimedBuff = false
 return function(Window, Utils, WebhookModule)
     local Players = game:GetService("Players")
     local Workspace = game:GetService("Workspace")
@@ -157,20 +159,55 @@ return function(Window, Utils, WebhookModule)
                             MonsterSystem.ClientAttackMonster(id) 
                         end
                     end
-                else 
-                    -- PHÒNG TRỐNG (Nơi duy nhất cần ép xuống thú thủ công vì không có quái để click)
-                    dungeonStuckTimer = 0 
-                    
-                    if humanoid.Sit then
-                        humanoid.Sit = false
-                        task.wait(0.1)
-                        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.M, false, game) 
-                        task.wait() 
-                        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.M, false, game)
-                        task.wait(0.2)
-                        humanoid.Jump = true 
-                    end
-                end
+else 
+    -- KHÔNG TÌM THẤY QUÁI (PHÒNG TRỐNG)
+    dungeonStuckTimer = 0 
+    
+    -- 1. Xử lý xuống thú
+    if humanoid.Sit then
+        humanoid.Sit = false
+        task.wait(0.1)
+        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.M, false, game) 
+        task.wait() 
+        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.M, false, game)
+        task.wait(0.2)
+        humanoid.Jump = true 
+    end
+
+    -- 2. Đọc màn chơi hiện tại để Reset cờ nhận buff nếu đã sang màn mới
+    local stageText = labStage and labStage.Text or ""
+    if stageText ~= "" and stageText ~= currentStageMemory then
+        currentStageMemory = stageText
+        hasClaimedBuff = false -- Reset cờ cho phòng mới
+    end
+
+    -- 3. Quét đối tượng
+    local talent = Workspace:FindFirstChild("AbyssTalent")
+    local door = Workspace:FindFirstChild("AbyssDoor")
+
+    if talent and not hasClaimedBuff then
+        -- Đi tìm Buff
+        local talentPos = talent:IsA("Model") and talent.PrimaryPart and talent.PrimaryPart.Position or talent.Position
+        humanoid:MoveTo(talentPos)
+        
+        -- Nếu đã đến đủ gần cột Buff
+        if (hrp.Position - talentPos).Magnitude < 7 then
+            -- Bấm E để mở bảng Buff
+            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+            task.wait(0.1)
+            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+            
+            -- TODO: Thêm logic tự động click chọn 1 buff ngẫu nhiên ở đây
+            -- Sau khi click xong:
+            hasClaimedBuff = true
+        end
+    elseif door then
+        -- Đã nhận buff xong (hoặc không có cột buff), chạy đi tìm Cửa
+        -- Tạm thời lấy cửa đầu tiên tìm thấy, sau này lọc theo ID ảnh sau
+        local doorPos = door:IsA("Model") and door.PrimaryPart and door.PrimaryPart.Position or door.Position
+        humanoid:MoveTo(doorPos)
+    end
+end
             end
 
             -- [2] LOGIC AUTO EXIT (Giữ nguyên)
