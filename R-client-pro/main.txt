@@ -1,5 +1,5 @@
 -- ====================================================================
--- MAIN SCRIPT: Khởi chạy R-Client Pro
+-- MAIN SCRIPT: Khởi chạy R-Client Pro (BẢN CHỐNG CACHE GITHUB)
 -- ====================================================================
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
@@ -13,27 +13,50 @@ local Window = Rayfield:CreateWindow({
     DisableBuildWarnings = true 
 })
 
--- Kéo các file từ GitHub về và chạy ngầm (Đã sửa lại đường dẫn chuẩn xác)
-local Utils = loadstring(game:HttpGet('https://raw.githubusercontent.com/chaocauminhlason/scripts-linh-tinh/main/R-client-pro/core/utilities.txt'))()
-local WebhookModule = loadstring(game:HttpGet('https://raw.githubusercontent.com/chaocauminhlason/scripts-linh-tinh/main/R-client-pro/core/webhook.txt'))()
+-- Tạo đuôi thời gian thực để XUYÊN THỦNG bộ nhớ đệm 5 phút của GitHub
+local noCache = "?t=" .. tostring(os.time())
 
--- Khởi tạo tab ghim cấu hình Webhook
-if WebhookModule then
+-- Hàm tải an toàn siêu việt
+local function SafeLoad(url)
+    local success, result = pcall(function() return game:HttpGet(url .. noCache) end)
+    if success then
+        local func, err = loadstring(result)
+        if func then 
+            return func() 
+        else 
+            warn("❌ Lỗi Cú Pháp tại: " .. url .. "\n" .. tostring(err)) 
+        end
+    else
+        warn("❌ Không kết nối được: " .. url)
+    end
+    return nil
+end
+
+-- 1. Kéo các file Core
+local Utils = SafeLoad('https://raw.githubusercontent.com/chaocauminhlason/scripts-linh-tinh/main/R-client-pro/core/utilities.txt')
+local WebhookModule = SafeLoad('https://raw.githubusercontent.com/chaocauminhlason/scripts-linh-tinh/main/R-client-pro/core/webhook.txt')
+
+if WebhookModule and WebhookModule.InitTab then
     WebhookModule.InitTab(Window, Rayfield)
 end
 
--- Tải các phân mảnh tính năng vào giao diện UI chính
+-- 2. Kéo các Features
 if Utils then
-    loadstring(game:HttpGet('https://raw.githubusercontent.com/chaocauminhlason/scripts-linh-tinh/main/R-client-pro/features/tracker.txt'))()(Window, Utils)
-    loadstring(game:HttpGet('https://raw.githubusercontent.com/chaocauminhlason/scripts-linh-tinh/main/R-client-pro/features/rgame_farm.txt'))()(Window, Utils)
-    loadstring(game:HttpGet('https://raw.githubusercontent.com/chaocauminhlason/scripts-linh-tinh/main/R-client-pro/features/boss_hunt.txt'))()(Window, Utils)
+    local t = SafeLoad('https://raw.githubusercontent.com/chaocauminhlason/scripts-linh-tinh/main/R-client-pro/features/tracker.txt')
+    if t then t(Window, Utils) end
     
-    -- Đã sửa từ dungeon_auto.txt thành auto_dungeon.txt đúng chuẩn tên file của bạn
-    if WebhookModule then
-        loadstring(game:HttpGet('https://raw.githubusercontent.com/chaocauminhlason/scripts-linh-tinh/main/R-client-pro/features/auto_dungeon.txt'))()(Window, Utils, WebhookModule)
-    end
+    local r = SafeLoad('https://raw.githubusercontent.com/chaocauminhlason/scripts-linh-tinh/main/R-client-pro/features/rgame_farm.txt')
+    if r then r(Window, Utils) end
     
-    loadstring(game:HttpGet('https://raw.githubusercontent.com/chaocauminhlason/scripts-linh-tinh/main/R-client-pro/features/optimization.txt'))()(Window, Utils)
+    local b = SafeLoad('https://raw.githubusercontent.com/chaocauminhlason/scripts-linh-tinh/main/R-client-pro/features/boss_hunt.txt')
+    if b then b(Window, Utils) end
+    
+    -- Load Hầm Ngục ĐỘC LẬP (Không bị phụ thuộc vào Webhook nữa)
+    local d = SafeLoad('https://raw.githubusercontent.com/chaocauminhlason/scripts-linh-tinh/main/R-client-pro/features/auto_dungeon.txt')
+    if d then d(Window, Utils, WebhookModule) end
+    
+    local o = SafeLoad('https://raw.githubusercontent.com/chaocauminhlason/scripts-linh-tinh/main/R-client-pro/features/optimization.txt')
+    if o then o(Window, Utils) end
 end
 
 Rayfield:LoadConfiguration()

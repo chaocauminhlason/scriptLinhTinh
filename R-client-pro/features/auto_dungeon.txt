@@ -254,7 +254,11 @@ return function(Window, Utils, WebhookModule)
                     if stage20ClockStarted and (not fmTimeFrame or fmTimeFrame.Visible == false) then
                         autoExitTriggered = true
                         DungeonStatus:Set("Trạng thái Auto Exit: Boss đã gục, chuẩn bị click thoát...")
-                        task.spawn(function() WebhookModule.SendNotification("**" .. LocalPlayer.Name .. "** vừa hoàn thành vòng Dungeon 20/20!") end)
+task.spawn(function() 
+    if WebhookModule and WebhookModule.SendNotification then 
+        WebhookModule.SendNotification("**" .. LocalPlayer.Name .. "** vừa hoàn thành vòng Dungeon 20/20!") 
+    end 
+end)
                         task.spawn(SafeExitRoutine)
                     end
                 else stage20ClockStarted = false; autoExitTriggered = false end
