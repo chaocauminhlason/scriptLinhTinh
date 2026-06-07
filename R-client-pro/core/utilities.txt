@@ -77,5 +77,34 @@ function Utils.GetPlayerId()
     return nil
 end
 
+-- HÀM X-RAY QUÉT MẶT ĐẤT
+local function GetGroundPosition(targetPosition)
+    -- 1. Đặt mốc phát tia: Từ vị trí mục tiêu, ta nâng lên cao 50 studs (trên trời)
+    local rayOrigin = targetPosition + Vector3.new(0, 50, 0)
+    
+    -- 2. Hướng bắn tia: Bắn thẳng xuống dưới mặt đất sâu 100 studs
+    local rayDirection = Vector3.new(0, -100, 0)
+
+    -- 3. Cấu hình X-ray: Bộ lọc để tia này xuyên qua nhân vật và thú cưỡi (chỉ chạm đất)
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+    
+    -- Lọc bỏ Character của mình và thư mục Pets (thêm thư mục Pets tùy game)
+    local char = game.Players.LocalPlayer.Character
+    local petsFolder = game.Workspace:FindFirstChild("Pets")
+    raycastParams.FilterDescendantsInstances = {char, petsFolder} 
+
+    -- 4. Thực hiện quét
+    local raycastResult = game.Workspace:Raycast(rayOrigin, rayDirection, raycastParams)
+
+    if raycastResult then
+        -- TRÚNG ĐÍCH: Trả về tọa độ mặt đất + bù thêm 3 studs chiều cao của chân nhân vật
+        return raycastResult.Position + Vector3.new(0, 3, 0)
+    else
+        -- NẾU TRƯỢT (Rất hiếm): Trả về tọa độ gốc để phòng hờ
+        return targetPosition + Vector3.new(0, 3, 0)
+    end
+end
+
 -- Trả về bảng Utils chứa tất cả các hàm trên để các file khác gọi lại
 return Utils
