@@ -10,7 +10,7 @@ return function(Window, Utils)
 
     local LocalPlayer = Players.LocalPlayer
     local originalFPS = 60
-    local antiAfkEnabled = false
+    local antiAfkEnabled = true
 
     -- LOGIC CHỐNG AFK NGẦM
     LocalPlayer.Idled:Connect(function() 
@@ -31,7 +31,7 @@ return function(Window, Utils)
     })
 
     OptimizationTab:CreateButton({ 
-        Name = "Kích hoạt Đồ Họa Siêu Thấp (Potato Mode)", 
+        Name = "Đồ Họa Siêu Thấp (Potato Mode)", 
         Callback = function()
             Lighting.GlobalShadows = false 
             Lighting.FogEnd = 9e9 
