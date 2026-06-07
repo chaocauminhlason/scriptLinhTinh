@@ -135,14 +135,21 @@ return function(Window, Utils, WebhookModule)
                         else dungeonStuckTimer = 0 end
                         dungeonLastPosition = hrp.Position
                     else
+                        -- ĐỦ TẦM ĐÁNH: Dừng lại trước khi chém
                         humanoid:MoveTo(hrp.Position)
                         dungeonStuckTimer = 0
                         
-                        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.M, false, game)
-                        task.wait()
-                        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.M, false, game)
-                        task.wait(0.2) 
-                        
+                        -- CHỈ ép đáp đất NẾU nhân vật đang bị dính trên thú (Sit = true)
+                        if humanoid.Sit then
+                            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.M, false, game)
+                            task.wait()
+                            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.M, false, game)
+                            
+                            -- Ép nhảy để rơi khỏi thú ngay lập tức, chống lag delay
+                            task.wait(0.2)
+                            humanoid.Jump = true
+                            task.wait(0.1) 
+                        end
                         local id = tonumber(bestTarget.Name:match("Monster_(%d+)"))
                         if id and MonsterSystem then 
                             MonsterSystem.ClientAttackMonster(id) 
