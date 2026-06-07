@@ -9,6 +9,8 @@ local Window = Rayfield:CreateWindow({
     LoadingSubtitle = "Dev by Sơn",
     ConfigurationSaving = { Enabled = true, FileName = "AutoFarmConfig" },
     KeySystem = false
+    DisableRayfieldPrompts = true,
+    DisableBuildWarnings = true 
 })
 
 -- Kéo các file từ GitHub về và chạy ngầm (Đã sửa lại đường dẫn chuẩn xác)
