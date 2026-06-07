@@ -134,26 +134,40 @@ return function(Window, Utils, WebhookModule)
                             if dungeonStuckTimer >= 3 then hrp.CFrame = CFrame.new(targetPos + Vector3.new(0, 0, 3)) dungeonStuckTimer = 0 end
                         else dungeonStuckTimer = 0 end
                         dungeonLastPosition = hrp.Position
-else
-    -- 1. Ép dừng di chuyển
-    humanoid:MoveTo(hrp.Position)
-    dungeonStuckTimer = 0
-    
-    -- 2. Ép đáp đất (Nếu đang bay do phím M)
-    -- Bấm phím M thêm 1 lần nữa để đảm bảo thú cưỡi đã thu lại hoàn toàn
-    -- và nhân vật thoát trạng thái bay
-    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.M, false, game)
-    task.wait()
-    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.M, false, game)
-    task.wait(0.2) -- Đợi nhân vật chạm đất
-    
-    -- 3. Gọi hàm tấn công
-    local id = tonumber(bestTarget.Name:match("Monster_(%d+)"))
-    if id and MonsterSystem then 
-        MonsterSystem.ClientAttackMonster(id) 
-    end
-end
-                else dungeonStuckTimer = 0 end
+                    else
+                        -- ĐỦ TẦM ĐÁNH: Ép đáp đất trước khi chém
+                        humanoid:MoveTo(hrp.Position)
+                        dungeonStuckTimer = 0
+                        
+                        -- Ép đáp đất (Nếu đang bay)
+                        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.M, false, game)
+                        task.wait()
+                        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.M, false, game)
+                        task.wait(0.2) -- Đợi chạm đất
+                        
+                        local id = tonumber(bestTarget.Name:match("Monster_(%d+)"))
+                        if id and MonsterSystem then 
+                            MonsterSystem.ClientAttackMonster(id) 
+                        end
+                    end
+                else 
+                    -- KHÔNG TÌM THẤY QUÁI (PHÒNG TRỐNG)
+                    dungeonStuckTimer = 0 
+                    
+                    -- 1. Ép nhân vật đứng im khi phòng đã sạch quái
+                    humanoid:MoveTo(hrp.Position)
+                    
+                    -- 2. Kiểm tra nếu đang bị kẹt trên thú (Trạng thái Sit = true) thì ép thu thú lại
+                    if humanoid.Sit then
+                        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.M, false, game) 
+                        task.wait() 
+                        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.M, false, game)
+                        
+                        -- Backup: Ép nhân vật nhảy lên để rớt khỏi thú đề phòng phím M bị delay
+                        task.wait(0.2)
+                        humanoid.Jump = true 
+                    end
+                end
             end
 
             -- [2] LOGIC AUTO EXIT
