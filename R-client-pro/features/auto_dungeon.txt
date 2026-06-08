@@ -133,8 +133,7 @@ return function(Window, Utils, WebhookModule)
             if not (hrp and humanoid and humanoid.Health > 0) then continue end
             local labStage = Utils.FindUIElementByName(playerGui, "LabStage")
             
-            -- [1] LOGIC AUTO ATTACK & ĐIỀU HƯỚNG
-            if autoAttackEnabled and labStage and labStage.Text ~= "Unknown" and labStage.Text ~= "" then
+if autoAttackEnabled and labStage and labStage.Text ~= "Unknown" and labStage.Text ~= "" then
                 local monstersFolder = Workspace:FindFirstChild("Monsters")
                 local closestDist2D = math.huge
                 local bestTarget = nil
@@ -146,6 +145,7 @@ return function(Window, Utils, WebhookModule)
                             if (not hum) or (hum and hum.Health > 0) then
                                 local pos = monster:IsA("Model") and monster.PrimaryPart and monster.PrimaryPart.Position or monster.Position
                                 
+                                -- TÍNH KHOẢNG CÁCH 2D ĐỂ KHÔNG BỊ LỪA KHI BAY CAO
                                 local dist2D = math.sqrt((hrp.Position.X - pos.X)^2 + (hrp.Position.Z - pos.Z)^2)
                                 
                                 if dist2D < closestDist2D then 
@@ -158,15 +158,16 @@ return function(Window, Utils, WebhookModule)
                 end
 
                 if bestTarget then
-                    -- CÓ QUÁI -> ĐÁNH
                     local targetPos = bestTarget:IsA("Model") and bestTarget.PrimaryPart and bestTarget.PrimaryPart.Position or bestTarget.Position
                     
                     if closestDist2D > 40 then
+                        -- TỐC BIẾN KHI Ở XA
                         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.M, false, game) task.wait() VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.M, false, game) task.wait(0.4)
                         hrp.CFrame = CFrame.new(targetPos + Vector3.new(0, 0, 4)) task.wait(0.2)
                         humanoid:MoveTo(hrp.Position) dungeonLastPosition = hrp.Position dungeonStuckTimer = 0
                         
                     elseif closestDist2D > 12 then
+                        -- CHẠY/BAY LẠI GẦN
                         humanoid:MoveTo(targetPos)
                         if dungeonLastPosition and (hrp.Position - dungeonLastPosition).Magnitude < 1 then
                             dungeonStuckTimer = dungeonStuckTimer + 0.5
@@ -175,19 +176,19 @@ return function(Window, Utils, WebhookModule)
                         dungeonLastPosition = hrp.Position
                         
                     else
+                        -- ĐỦ TẦM ĐÁNH (< 12)
                         humanoid:MoveTo(hrp.Position)
                         dungeonStuckTimer = 0
                         
+                        -- Lợi dụng cơ chế gọi lệnh Attack để game tự động ép nhân vật đáp đất
                         local id = tonumber(bestTarget.Name:match("Monster_(%d+)"))
                         if id and MonsterSystem then 
                             MonsterSystem.ClientAttackMonster(id) 
                         end
                     end
                 else 
-                    -- ==========================================
-                    -- KHÔNG CÓ QUÁI -> ĐIỀU HƯỚNG BẰNG X-RAY
-                    -- ==========================================
-                    dungeonStuckTimer = 0 
+                    -- KHÔNG TÌM THẤY QUÁI (PHÒNG TRỐNG)
+                    dungeonStuckTimer = 0
                     
                     -- 1. Ép xuống thú nếu đang cưỡi
                     if humanoid.Sit then
