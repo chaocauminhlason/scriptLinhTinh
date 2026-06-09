@@ -1,5 +1,5 @@
 -- ====================================================================
--- MODULE: DUNGEON AUTO (TÍCH HỢP TỐI ƯU PHÍM M, AUTO EXIT & CẦU DAO TỔNG)
+-- MODULE: DUNGEON AUTO (TÍCH HỢP TỐI ƯU PHÍM M, AUTO EXIT & AUTO DUNGEON)
 -- BẢN CẬP NHẬT: THÊM CÔNG TẮC TỔNG ĐIỀU KHIỂN TOÀN BỘ CHỨC NĂNG CON
 -- ====================================================================
 return function(Window, Utils, WebhookModule)
@@ -13,7 +13,7 @@ return function(Window, Utils, WebhookModule)
     local myUserId = LocalPlayer.UserId
 
     -- Biến trạng thái hệ thống
-    local masterSwitchEnabled = false -- [MỚI] CẦU DAO TỔNG CỦA MODULE
+    local masterSwitchEnabled = false -- [MỚI] AUTO DUNGEON CỦA MODULE
     local autoExitEnabled = false
     local autoExitTriggered = false
     local stage20ClockStarted = false
@@ -31,17 +31,17 @@ return function(Window, Utils, WebhookModule)
     -- GIAO DIỆN UI (RAYFIELD TABS)
     -- ==========================================
     local DungeonTab = Window:CreateTab("Hầm Ngục", 4483362458)
-    local DungeonStatus = DungeonTab:CreateLabel("🔌 Trạng thái hệ thống: CẦU DAO TỔNG ĐANG TẮT")
+    local DungeonStatus = DungeonTab:CreateLabel("🔌 Trạng thái hệ thống: AUTO DUNGEON ĐANG TẮT")
 
-    -- [MỚI] CẦU DAO TỔNG - PHẢI BẬT NÚT NÀY THÌ CÁC CHỨC NĂNG CON MỚI CÓ TÁC DỤNG
+    -- [MỚI] AUTO DUNGEON - PHẢI BẬT NÚT NÀY THÌ CÁC CHỨC NĂNG CON MỚI CÓ TÁC DỤNG
     DungeonTab:CreateToggle({
-        Name = "🔌 CẦU DAO TỔNG (MASTER SWITCH)",
+        Name = "Auto dungeon",
         CurrentValue = false,
         Flag = "DungeonMasterBreaker",
         Callback = function(Value)
             masterSwitchEnabled = Value
             if not Value then
-                DungeonStatus:Set("🔌 Trạng thái hệ thống: CẦU DAO TỔNG ĐANG TẮT")
+                DungeonStatus:Set("🔌 Trạng thái hệ thống: AUTO DUNGEON ĐANG TẮT")
                 -- Ép dừng nhân vật ngay lập tức khi sập cầu dao để tránh bị chạy tự do
                 pcall(function()
                     local char = LocalPlayer.Character
@@ -119,11 +119,11 @@ return function(Window, Utils, WebhookModule)
     end
 
     -- ==========================================
-    -- VÒNG LẶP CORE (CHỈ CHẠY KHI CẦU DAO TỔNG BẬT)
+    -- VÒNG LẶP CORE (CHỈ CHẠY KHI AUTO DUNGEON BẬT)
     -- ==========================================
     task.spawn(function()
         while task.wait(0.5) do
-            -- [MỚI] KIỂM TRA CẦU DAO TỔNG ĐẦU TIÊN
+            -- [MỚI] KIỂM TRA AUTO DUNGEON ĐẦU TIÊN
             if not masterSwitchEnabled then continue end
 
             local char = LocalPlayer.Character
