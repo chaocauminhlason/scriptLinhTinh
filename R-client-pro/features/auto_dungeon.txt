@@ -1,6 +1,6 @@
 -- ====================================================================
 -- MODULE: DUNGEON AUTO (TÍCH HỢP TỐI ƯU PHÍM M, AUTO EXIT & AUTO DUNGEON)
--- BẢN CẬP NHẬT: THÊM CÔNG TẮC TỔNG ĐIỀU KHIỂN & ĐO ĐỘ CAO CHỐNG KẸT
+-- BẢN CẬP NHẬT: TỐI ƯU HÀM FORCE DISMOUNT (ÉP XUỐNG THÚ SAU TELEPORT)
 -- ====================================================================
 return function(Window, Utils, WebhookModule)
     local Players = game:GetService("Players")
@@ -26,6 +26,40 @@ return function(Window, Utils, WebhookModule)
     -- API Game
     local MonsterSystem = nil
     pcall(function() MonsterSystem = require(ReplicatedStorage.CommonLogic.Monster.MonsterSystem) end)
+
+    -- ==========================================
+    -- HÀM ÉP XUỐNG THÚ AN TOÀN (RAYCAST)
+    -- ==========================================
+    local function ForceDismount(char, hrp, humanoid)
+        local rayParams = RaycastParams.new()
+        rayParams.FilterType = Enum.RaycastFilterType.Exclude
+        
+        -- Lọc bỏ bản thân và thư mục Pets an toàn
+        local filterList = {char}
+        local petsFolder = Workspace:FindFirstChild("Pets")
+        if petsFolder then table.insert(filterList, petsFolder) end
+        rayParams.FilterDescendantsInstances = filterList
+
+        local rayResult = Workspace:Raycast(hrp.Position, Vector3.new(0, -15, 0), rayParams)
+        local isRiding = humanoid.Sit
+
+        if rayResult then
+            if (hrp.Position.Y - rayResult.Position.Y) > 6 then isRiding = true end
+        else
+            isRiding = true 
+        end
+
+        if isRiding then
+            humanoid.Sit = false
+            task.wait(0.1)
+            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.M, false, game) 
+            task.wait() 
+            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.M, false, game)
+            task.wait(0.15)
+            humanoid.Jump = true
+            task.wait(0.15)
+        end
+    end
 
     -- ==========================================
     -- GIAO DIỆN UI (RAYFIELD TABS)
@@ -117,7 +151,7 @@ return function(Window, Utils, WebhookModule)
     end
 
     -- ==========================================
-    -- VÒNG LẶP CORE (CHỈ CHẠY KHI AUTO DUNGEON BẬT)
+    -- VÒNG LẶP CORE 
     -- ==========================================
     task.spawn(function()
         while task.wait(0.5) do
@@ -130,7 +164,7 @@ return function(Window, Utils, WebhookModule)
             if not (hrp and humanoid and humanoid.Health > 0) then continue end
             local labStage = Utils.FindUIElementByName(playerGui, "LabStage")
          
-            -- [1] LOGIC AUTO ATTACK (TRICK PHÍM M)
+            -- [1] LOGIC AUTO ATTACK
             if autoAttackEnabled and labStage and labStage.Text ~= "Unknown" and labStage.Text ~= "" then
                 local monstersFolder = Workspace:FindFirstChild("Monsters")
                 local closestDist2D = math.huge
@@ -157,9 +191,16 @@ return function(Window, Utils, WebhookModule)
                     local targetPos = bestTarget:IsA("Model") and bestTarget.PrimaryPart and bestTarget.PrimaryPart.Position or bestTarget.Position
                     
                     if closestDist2D > 40 then
-                        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.M, false, game) task.wait() VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.M, false, game) task.wait(0.4)
-                        hrp.CFrame = CFrame.new(targetPos + Vector3.new(0, 0, 4)) task.wait(0.2)
-                        humanoid:MoveTo(hrp.Position) dungeonLastPosition = hrp.Position dungeonStuckTimer = 0
+                        -- [TỐI ƯU MỚI]: Bỏ lệnh bấm M rác trước khi Teleport. 
+                        -- Dịch chuyển thẳng, sau đó gọi hàm ForceDismount để ép đáp đất.
+                        hrp.CFrame = CFrame.new(targetPos + Vector3.new(0, 0, 4)) 
+                        task.wait(0.2)
+                        humanoid:MoveTo(hrp.Position) 
+                        dungeonLastPosition = hrp.Position 
+                        dungeonStuckTimer = 0
+                        
+                        -- ÉP XUỐNG THÚ NGAY SAU KHI TELEPORT
+                        ForceDismount(char, hrp, humanoid)
                         
                     elseif closestDist2D > 12 then
                         humanoid:MoveTo(targetPos)
@@ -173,29 +214,8 @@ return function(Window, Utils, WebhookModule)
                         humanoid:MoveTo(hrp.Position)
                         dungeonStuckTimer = 0
                         
-                        -- FIX KẸT THÚ BẰNG RAYCAST
-                        local rayParams = RaycastParams.new()
-                        rayParams.FilterType = Enum.RaycastFilterType.Exclude
-                        rayParams.FilterDescendantsInstances = {char, Workspace:FindFirstChild("Pets")}
-                        local rayResult = Workspace:Raycast(hrp.Position, Vector3.new(0, -15, 0), rayParams)
-                        local isRiding = humanoid.Sit
-
-                        if rayResult then
-                            if (hrp.Position.Y - rayResult.Position.Y) > 6 then isRiding = true end
-                        else
-                            isRiding = true 
-                        end
-
-                        if isRiding then
-                            humanoid.Sit = false
-                            task.wait(0.1)
-                            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.M, false, game) 
-                            task.wait() 
-                            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.M, false, game)
-                            task.wait(0.15)
-                            humanoid.Jump = true
-                            task.wait(0.15)
-                        end
+                        -- DOUBLE CHECK: Kiểm tra lần cuối trước khi tung chiêu
+                        ForceDismount(char, hrp, humanoid)
                         
                         local id = tonumber(bestTarget.Name:match("Monster_(%d+)"))
                         if id and MonsterSystem then 
@@ -204,29 +224,8 @@ return function(Window, Utils, WebhookModule)
                     end
                 else 
                     dungeonStuckTimer = 0 
-                    
-                    -- FIX XUỐNG THÚ KHI PHÒNG TRỐNG (Dọn xong)
-                    local rayParams = RaycastParams.new()
-                    rayParams.FilterType = Enum.RaycastFilterType.Exclude
-                    rayParams.FilterDescendantsInstances = {char, Workspace:FindFirstChild("Pets")}
-                    local rayResult = Workspace:Raycast(hrp.Position, Vector3.new(0, -15, 0), rayParams)
-                    local isRiding = humanoid.Sit
-
-                    if rayResult then
-                        if (hrp.Position.Y - rayResult.Position.Y) > 6 then isRiding = true end
-                    else
-                        isRiding = true 
-                    end
-
-                    if isRiding then
-                        humanoid.Sit = false
-                        task.wait(0.1)
-                        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.M, false, game) 
-                        task.wait() 
-                        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.M, false, game)
-                        task.wait(0.2)
-                        humanoid.Jump = true 
-                    end
+                    -- Tự động xuống thú khi phòng đã trống
+                    ForceDismount(char, hrp, humanoid)
                 end
             end
 
