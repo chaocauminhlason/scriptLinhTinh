@@ -15,7 +15,7 @@ local waveCleared = false
 local roomEnterTime = tick()
 
 local lastPosition = nil
-local TELEPORT_THRESHOLD = 20
+local TELEPORT_THRESHOLD = 150 -- Tăng lên 150 để không bị reset nhầm khi đang cưỡi thú chạy nhanh
 local isWaitingForTeleport = false
 
 -- BẢNG DỮ LIỆU ID CỬA TỪ GAME
@@ -432,44 +432,53 @@ local function coreAutoSystem()
     end
 
     -- XỬ LÝ LẤY TALENT (CỘT BUFF)
-    if not hasHandledTalentThisRoom then
+-- XỬ LÝ LẤY TALENT (CỘT BUFF)
+if not hasHandledTalentThisRoom then
         isProcessing = true 
-        logDoor.Text = "CỬA: ĐÃ CHỌN! TÌM TALENT..."
-        logDoor.TextColor3 = Color3.fromRGB(200, 200, 100)
+        logDoor.Text = "CỬA: ĐÃ CHỌN!\nTÌM TALENT..."
         
-        task.wait(1.5) 
+        -- Dùng hàm tìm trụ thông minh thay vì gọi đích danh 1470_16
+        local abyssTalent = nil
+        for _, obj in ipairs(Workspace:GetChildren()) do
+            if obj.Name == "AbyssTalent" then -- Hoặc tên gốc mà script cũ của bạn đang dùng
+                abyssTalent = obj
+                break
+            end
+        end
 
-        local abyssTalent = Workspace:FindFirstChild("AbyssTalent")
         if abyssTalent then
-            logTalent.Text = "TALENT: ĐANG CHẠY ĐẾN CỘT BUFF..."
-            logTalent.TextColor3 = Color3.fromRGB(255, 215, 0)
+            logTalent.Text = "TALENT: ĐANG CHẠY ĐẾN TRỤ..."
             
-            local talentPos = abyssTalent:IsA("Model") and abyssTalent.PrimaryPart and abyssTalent.PrimaryPart.Position or abyssTalent.Position
+            -- Lấy tọa độ tâm (PrimaryPart hoặc Position)
+            local talentPos = abyssTalent:IsA("Model") and (abyssTalent.PrimaryPart and abyssTalent.PrimaryPart.Position or abyssTalent:GetPivot().Position) or abyssTalent.Position
+            
             local hum = character:FindFirstChildOfClass("Humanoid")
-            
             if hum then
-                hum:MoveTo(talentPos)
-                local timeout = tick() + 6
-                repeat task.wait(0.1) until (rootPart.Position - talentPos).Magnitude < 7 or tick() > timeout
+                -- Ép chạy sát hơn vào tâm trụ (offset 2 studs)
+                local timeout = tick() + 5
+                repeat 
+                    hum:MoveTo(talentPos)
+                    task.wait(0.1) 
+                until (rootPart.Position - talentPos).Magnitude < 3 or tick() > timeout
                 hum:MoveTo(rootPart.Position)
             end
             
-            logTalent.Text = "TALENT: ĐANG MỞ BẢNG BUFF..."
+            -- Tương tác (E hoặc Prompt)
             local prompt = abyssTalent:FindFirstChildWhichIsA("ProximityPrompt", true)
             if prompt then fireproximityprompt(prompt) else
                 local VirtualInputManager = game:GetService("VirtualInputManager")
-                VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game) task.wait(0.1) VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+                VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game) 
+                task.wait(0.1) 
+                VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
             end
     
-            task.wait(0.5)
+            task.wait(0.6) -- Chờ UI hiện
             AutoPickBuff()
-            logTalent.Text = "TALENT: ĐÃ LẤY XONG. RA CỬA!"
-            logTalent.TextColor3 = Color3.fromRGB(0, 255, 100)
+            
+            logTalent.Text = "TALENT: XONG. RA CỬA!"
         else
-            logTalent.Text = "TALENT: KHÔNG CÓ Ở TẦNG NÀY."
-            logTalent.TextColor3 = Color3.fromRGB(180, 180, 180)
+            logTalent.Text = "TALENT: KHÔNG TÌM THẤY TRỤ."
         end
-
         hasHandledTalentThisRoom = true
     end
 
