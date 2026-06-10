@@ -1,6 +1,6 @@
 -- ====================================================================
 -- MODULE: DUNGEON AUTO (AUTO ATTACK, AUTO EXIT, AUTO JOIN & AUTO CREATE)
--- BẢN CẬP NHẬT: FIX LỖI KẸT START (GETRENV._G & SYNC DELAY)
+-- BẢN CẬP NHẬT: ÉP CLICK BẰNG GETCONNECTIONS & DELAY ĐỒNG BỘ UI
 -- ====================================================================
 return function(Window, Utils, WebhookModule)
     local Players = game:GetService("Players")
@@ -285,37 +285,65 @@ return function(Window, Utils, WebhookModule)
                                     end
                                     
                                     if currentPlayerCount >= targetPlayerCount then
-                                        DungeonStatus:Set("Sảnh: Đủ " .. currentPlayerCount .. "/" .. targetPlayerCount .. " người! Đang Start...")
+                                        DungeonStatus:Set("Sảnh: Đủ " .. currentPlayerCount .. "/" .. targetPlayerCount .. " người! Chuẩn bị Start...")
                                         isStartingDungeon = true
                                         
-                                        -- QUAN TRỌNG: Chờ 1.5s để server đồng bộ TeamInfo và UI AbyssTeamView tải xong
-                                        task.wait(1.5)
+                                        -- QUAN TRỌNG: Nới lỏng thời gian để Game kịp bật bảng UI Phòng Chờ lên
+                                        task.wait(2.5)
+                                        DungeonStatus:Set("Sảnh: Đang ép lệnh Start...")
                                         
-                                        -- LỚP 1: Ép API của Game thông qua biến toàn cục getrenv() của Executor (Tỷ lệ ăn 100%)
+                                        -- LỚP 1: Ép API của Game
                                         pcall(function()
                                             local CG = getrenv()._G
-                                            if CG and CG.PathTool and CG.PathTool.AbyssSystem and CG.PathTool.ViewUtil then
+                                            if CG and CG.PathTool and CG.PathTool.ViewUtil and CG.PathTool.AbyssSystem then
                                                 CG.PathTool.ViewUtil.DoRequest(CG.PathTool.AbyssSystem.ClientStartAbyss)
                                             end
                                         end)
                                         
-                                        -- LỚP 2: Quét Click Chuột Ảo vào UI AbyssTeamView
+                                        -- LỚP 2: Quét Tìm Bằng Mọi Giá & Kích Hoạt Nút Start
+                                        local startNames = {"BtStart", "BtnStart", "BtGo", "BtEnter", "StartBtn"}
+                                        local btnStart = nil
+                                        
                                         local teamView = Utils.FindUIElementByName(playerGui, "AbyssTeamView")
                                         if teamView then
-                                            local btStart = Utils.FindUIElementByName(teamView, "BtStart") or Utils.FindUIElementByName(teamView, "BtnStart")
-                                            if btStart and btStart.AbsoluteSize.X > 0 then
-                                                Utils.ClickButtonExact(btStart, "Nút Start")
+                                            for _, btnName in ipairs(startNames) do
+                                                btnStart = Utils.FindUIElementByName(teamView, btnName)
+                                                if btnStart then break end
                                             end
                                         end
                                         
-                                        -- LỚP 3: Quét rộng các nút Start trên màn hình
-                                        local startNames = {"BtStart", "BtnStart", "BtGo", "BtEnter"}
-                                        for _, btnName in ipairs(startNames) do
-                                            local btn = Utils.FindUIElementByName(playerGui, btnName)
-                                            if btn and btn.AbsoluteSize.X > 0 and btn.Visible then Utils.ClickButtonExact(btn, "Nút Start (Rộng)") break end
+                                        if not btnStart then
+                                            for _, v in pairs(playerGui:GetDescendants()) do
+                                                if v:IsA("GuiButton") and v.Visible and v.AbsoluteSize.X > 0 then
+                                                    for _, btnName in ipairs(startNames) do
+                                                        if v.Name == btnName then btnStart = v break end
+                                                    end
+                                                    if btnStart then break end
+                                                    
+                                                    local txt = v:IsA("TextButton") and v.Text or ""
+                                                    local lab = v:FindFirstChildOfClass("TextLabel")
+                                                    if lab then txt = lab.Text end
+                                                    txt = string.lower(txt)
+                                                    if string.match(txt, "start") or string.match(txt, "bắt đầu") then
+                                                        btnStart = v break
+                                                    end
+                                                end
+                                            end
                                         end
                                         
-                                        task.wait(4.5) -- Đợi tổng cộng 6s cho map load xong
+                                        if btnStart then
+                                            -- Ép tín hiệu Click ngầm (Bypass Layer UI cho Solara)
+                                            pcall(function()
+                                                if getconnections then
+                                                    for _, conn in ipairs(getconnections(btnStart.Activated)) do conn.Function() end
+                                                    for _, conn in ipairs(getconnections(btnStart.MouseButton1Click)) do conn.Function() end
+                                                end
+                                            end)
+                                            -- Click chuột ảo (Dự phòng)
+                                            Utils.ClickButtonExact(btnStart, "Nút Start")
+                                        end
+                                        
+                                        task.wait(4.5) -- Đợi map load
                                         isStartingDungeon = false
                                     else 
                                         DungeonStatus:Set("Sảnh: Đang chờ người " .. currentPlayerCount .. "/" .. targetPlayerCount) 
@@ -336,8 +364,21 @@ return function(Window, Utils, WebhookModule)
                                         end
                                     end
                                     
-                                    if diffBtn then Utils.ClickButtonExact(diffBtn, "Nút Độ Khó: " .. diffString) task.wait(0.5) end
-                                    if btCreate then Utils.ClickButtonExact(btCreate, "Nút Tạo Phòng") task.wait(2) end
+                                    if diffBtn then 
+                                        Utils.ClickButtonExact(diffBtn, "Nút Độ Khó: " .. diffString) 
+                                        task.wait(0.5) 
+                                    end
+                                    if btCreate then 
+                                        -- Ép lệnh Click cho Create
+                                        pcall(function()
+                                            if getconnections then
+                                                for _, conn in ipairs(getconnections(btCreate.Activated)) do conn.Function() end
+                                                for _, conn in ipairs(getconnections(btCreate.MouseButton1Click)) do conn.Function() end
+                                            end
+                                        end)
+                                        Utils.ClickButtonExact(btCreate, "Nút Tạo Phòng") 
+                                        task.wait(3.5) -- TĂNG THỜI GIAN CHỜ LÊN 3.5s CHO GAME LẬT UI
+                                    end
 
                                 -- GIAI ĐOẠN 1: TÌM BỤC TRỐNG ĐỂ NHẢY VÀO
                                 elseif emptyRoomToCreate then
@@ -345,7 +386,7 @@ return function(Window, Utils, WebhookModule)
                                     if distToEmpty > 15 then
                                         DungeonStatus:Set("Sảnh: Đang nhảy vào phòng trống...")
                                         hrp.CFrame = CFrame.new(emptyRoomToCreate)
-                                        task.wait(1.5) -- Chờ game load bảng FmPrepare
+                                        task.wait(1.5)
                                     end
                                 end
                             end
