@@ -1,6 +1,6 @@
 -- ====================================================================
 -- MODULE: DUNGEON AUTO (AUTO ATTACK, AUTO EXIT, AUTO JOIN & AUTO CREATE)
--- BẢN CẬP NHẬT: FULL HOÀN CHỈNH (TRIPLE-TRIGGER + ANTI SPAM START + FIX TỌA ĐỘ)
+-- BẢN CẬP NHẬT: FIX LỖI NHẢY LẠI GIỮA 2 BỤC (LOCK VÀO BỤC GẦN NHẤT)
 -- ====================================================================
 return function(Window, Utils, WebhookModule)
     local Players = game:GetService("Players")
@@ -242,8 +242,12 @@ return function(Window, Utils, WebhookModule)
                             local myRoomNode = nil
                             local shouldJumpOut = false
                             local jumpOutTarget = nil
+                            
                             local roomToJoin = nil
+                            local closestJoinDist = math.huge -- Lưu khoảng cách tới bục Join gần nhất
+                            
                             local emptyRoomToCreate = nil
+                            local closestEmptyDist = math.huge -- Lưu khoảng cách tới bục trống gần nhất
                             
                             for _, room in ipairs(abyssFolder:GetChildren()) do
                                 if string.match(room.Name, "Abyss_") then
@@ -262,35 +266,40 @@ return function(Window, Utils, WebhookModule)
 
                                     if surfaceGui and surfaceGui:FindFirstChild("FmEmpty") and surfaceGui:FindFirstChild("FmPrepare") and surfaceGui:FindFirstChild("FmInfo") and surfaceGui:FindFirstChild("FmPlayer") then
                                         
-                                        -- Lọc phòng có người để Join
-                                        if (not surfaceGui.FmEmpty.Visible) and (not surfaceGui.FmPrepare.Visible) and surfaceGui.FmInfo.Visible and surfaceGui.FmPlayer.Visible then
-                                            local isOtherPlayer = false
-                                            for _, desc in ipairs(surfaceGui.FmPlayer:GetDescendants()) do
-                                                if desc:IsA("ImageLabel") and string.find(desc.Image, "AvatarHeadShot") then
-                                                    local extractedId = string.match(desc.Image, "id=(%d+)")
-                                                    if extractedId and tonumber(extractedId) ~= myUserId then isOtherPlayer = true break end
-                                                end
-                                            end
+                                        local targetPos = (room:IsA("Model") and room:GetPivot().Position) or (room:IsA("BasePart") and room.Position)
+                                        if targetPos then
+                                            local dist = (hrp.Position - targetPos).Magnitude
                                             
-                                            local targetPos = (room:IsA("Model") and room:GetPivot().Position) or (room:IsA("BasePart") and room.Position)
-                                            if targetPos then
-                                                local dist = (hrp.Position - targetPos).Magnitude
+                                            -- Lọc phòng có người để Join
+                                            if (not surfaceGui.FmEmpty.Visible) and (not surfaceGui.FmPrepare.Visible) and surfaceGui.FmInfo.Visible and surfaceGui.FmPlayer.Visible then
+                                                local isOtherPlayer = false
+                                                for _, desc in ipairs(surfaceGui.FmPlayer:GetDescendants()) do
+                                                    if desc:IsA("ImageLabel") and string.find(desc.Image, "AvatarHeadShot") then
+                                                        local extractedId = string.match(desc.Image, "id=(%d+)")
+                                                        if extractedId and tonumber(extractedId) ~= myUserId then isOtherPlayer = true break end
+                                                    end
+                                                end
+                                                
                                                 if isMyRoom and dist < 25 then 
                                                     shouldJumpOut = true 
                                                     local leaveAth = room:FindFirstChild("LeaveAth") 
                                                     if leaveAth and leaveAth:IsA("Attachment") then jumpOutTarget = leaveAth.WorldPosition end
                                                 elseif isOtherPlayer then 
-                                                    if dist < 15 then alreadyInSomeoneRoom = true 
-                                                    elseif not roomToJoin then roomToJoin = targetPos + Vector3.new(0, 3, 0) end 
+                                                    if dist < 15 then 
+                                                        alreadyInSomeoneRoom = true 
+                                                    elseif dist < closestJoinDist then 
+                                                        closestJoinDist = dist
+                                                        roomToJoin = targetPos + Vector3.new(0, 3, 0) 
+                                                    end 
                                                 end
                                             end
-                                        end
 
-                                        -- Lọc phòng trống để Create
-                                        if surfaceGui.FmEmpty.Visible and not autoJoinOthersEnabled then
-                                            local targetPos = (room:IsA("Model") and room:GetPivot().Position) or (room:IsA("BasePart") and room.Position)
-                                            if targetPos and not emptyRoomToCreate then
-                                                emptyRoomToCreate = targetPos + Vector3.new(0, 3, 0) 
+                                            -- Lọc phòng trống để Create (Luôn ƯU TIÊN PHÒNG GẦN NHẤT ĐỂ KHÔNG BỊ NHẢY LOẠN)
+                                            if surfaceGui.FmEmpty.Visible and not autoJoinOthersEnabled then
+                                                if dist < closestEmptyDist then
+                                                    closestEmptyDist = dist
+                                                    emptyRoomToCreate = targetPos + Vector3.new(0, 3, 0) 
+                                                end
                                             end
                                         end
                                     end
@@ -352,9 +361,10 @@ return function(Window, Utils, WebhookModule)
                                     end
 
                                 elseif emptyRoomToCreate then
-                                    -- CHƯA CÓ PHÒNG -> Nhảy vào phòng trống & Setup
+                                    -- CHƯA CÓ PHÒNG -> Nhảy vào phòng trống GẦN NHẤT & Setup
+                                    -- Khoảng cách nới lỏng lên 15 để nếu rớt lệch vẫn nhận diện được đang ở trong phòng
                                     local distToEmpty = (hrp.Position - emptyRoomToCreate).Magnitude
-                                    if distToEmpty > 10 then
+                                    if distToEmpty > 15 then
                                         DungeonStatus:Set("Sảnh: Đang nhảy vào phòng trống...")
                                         hrp.CFrame = CFrame.new(emptyRoomToCreate)
                                         task.wait(2)
