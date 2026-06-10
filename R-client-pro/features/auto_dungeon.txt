@@ -26,6 +26,8 @@ return function(Window, Utils, WebhookModule)
     local dungeonStuckTimer = 0
     local dungeonLastPosition = nil
 
+    local isStartingDungeon = false
+
     -- API Game
     local MonsterSystem = nil
     pcall(function() MonsterSystem = require(ReplicatedStorage.CommonLogic.Monster.MonsterSystem) end)
@@ -306,6 +308,9 @@ return function(Window, Utils, WebhookModule)
                                 end
 
                             elseif autoCreateEnabled then
+                                -- Thêm cờ khóa (debounce) để chống spam Start
+                                if isStartingDungeon then continue end
+
                                 if isMyRoom and myRoomNode then
                                     -- ĐÃ TẠO XONG -> Đếm người qua Attributes -> START
                                     local currentPlayerCount = 0
@@ -317,8 +322,9 @@ return function(Window, Utils, WebhookModule)
                                     
                                     if currentPlayerCount >= targetPlayerCount then
                                         DungeonStatus:Set("Sảnh: Đủ " .. currentPlayerCount .. "/" .. targetPlayerCount .. " người! Đang Start...")
+                                        isStartingDungeon = true -- KHOÁ VÒNG LẶP LẠI
                                         
-                                        -- Lớp 1: Gọi API Gốc qua bộ Framework của Game (Chuẩn nhất)
+                                        -- Lớp 1: Gọi API Gốc
                                         pcall(function()
                                             if _G.PathTool and _G.PathTool.AbyssSystem and _G.PathTool.ViewUtil then
                                                 _G.PathTool.ViewUtil.DoRequest(_G.PathTool.AbyssSystem.ClientStartAbyss)
@@ -330,7 +336,7 @@ return function(Window, Utils, WebhookModule)
                                             pcall(function() AbyssSystem.ClientStartAbyss() end)
                                         end
                                         
-                                        -- Lớp 3: Quét Click UI thủ công
+                                        -- Lớp 3: Quét Click UI
                                         local startNames = {"BtStart", "BtnStart", "BtGo", "BtEnter"}
                                         for _, btnName in ipairs(startNames) do
                                             local btn = Utils.FindUIElementByName(playerGui, btnName)
@@ -340,7 +346,8 @@ return function(Window, Utils, WebhookModule)
                                             end
                                         end
                                         
-                                        task.wait(2.5) -- Đợi server load map
+                                        task.wait(6) -- Cho Server 6 giây để load map, chống spam lệnh.
+                                        isStartingDungeon = false -- Mở khoá
                                     else
                                         DungeonStatus:Set("Sảnh: Đang chờ người " .. currentPlayerCount .. "/" .. targetPlayerCount)
                                     end
@@ -354,15 +361,18 @@ return function(Window, Utils, WebhookModule)
                                         task.wait(2)
                                     else
                                         DungeonStatus:Set("Sảnh: Đang thiết lập Độ Khó và Tạo...")
-                                        task.wait(1.5) -- Chờ UI Game nảy lên ổn định
+                                        task.wait(1.5) 
                                         
-                                        local diffBtnName = tostring(targetDifficulty) .. "Btn"
+                                        -- [ĐÃ FIX] Chuẩn hóa tên nút Độ Khó theo game
+                                        local diffMap = {"Normal", "Hard", "Nightmare"}
+                                        local diffString = diffMap[targetDifficulty] or "Normal"
+                                        local diffBtnName = diffString .. "Btn" 
+                                        
                                         local diffBtn = nil
                                         local btCreate = nil
                                         
-                                        -- Quét kĩ bên trong UI Tạo phòng để tránh bấm nhầm
                                         for _, v in pairs(playerGui:GetDescendants()) do
-                                            if v:IsA("GuiObject") then
+                                            if v:IsA("GuiObject") and v.Visible then
                                                 if v.Name == diffBtnName and v.Parent and v.Parent.Name == "BtnFrame" then
                                                     diffBtn = v
                                                 elseif v.Name == "BtCreate" and v.Parent and v.Parent.Name == "BottomFrame" then
@@ -371,16 +381,14 @@ return function(Window, Utils, WebhookModule)
                                             end
                                         end
                                         
-                                        -- 1. Chọn độ khó
                                         if diffBtn then
-                                            Utils.ClickButtonExact(diffBtn, "Nút Độ Khó " .. targetDifficulty)
+                                            Utils.ClickButtonExact(diffBtn, "Nút Độ Khó: " .. diffString)
                                             task.wait(0.5)
                                         end
                                         
-                                        -- 2. Click Tạo phòng
                                         if btCreate then
                                             Utils.ClickButtonExact(btCreate, "Nút Tạo Phòng")
-                                            task.wait(2.5) -- Tăng độ trễ cho server xác lập quyền Owner
+                                            task.wait(2.5) 
                                         end
                                     end
                                 end
