@@ -1,6 +1,6 @@
 -- ====================================================================
 -- MODULE: DUNGEON AUTO (AUTO ATTACK, AUTO EXIT, AUTO JOIN & AUTO CREATE)
--- BẢN CẬP NHẬT: FIX LỖI NHẢY LOẠN BỤC (CHIA 3 GIAI ĐOẠN TẠO PHÒNG)
+-- BẢN CẬP NHẬT: FIX LỖI KẸT START (GETRENV._G & SYNC DELAY)
 -- ====================================================================
 return function(Window, Utils, WebhookModule)
     local Players = game:GetService("Players")
@@ -213,7 +213,6 @@ return function(Window, Utils, WebhookModule)
                             local emptyRoomToCreate = nil
                             local closestEmptyDist = math.huge
                             
-                            -- NEW: Biến nhận diện Giai đoạn 2 (Đứng trên bục chuẩn bị)
                             local isPreparingRoom = false
 
                             for _, room in ipairs(abyssFolder:GetChildren()) do
@@ -235,7 +234,6 @@ return function(Window, Utils, WebhookModule)
                                         if targetPos then
                                             local dist = (hrp.Position - targetPos).Magnitude
                                             
-                                            -- 1. Lọc phòng đang mở để Join
                                             if (not surfaceGui.FmEmpty.Visible) and (not surfaceGui.FmPrepare.Visible) and surfaceGui.FmInfo.Visible and surfaceGui.FmPlayer.Visible then
                                                 local isOtherPlayer = false
                                                 for _, desc in ipairs(surfaceGui.FmPlayer:GetDescendants()) do
@@ -255,12 +253,10 @@ return function(Window, Utils, WebhookModule)
                                                 end
                                             end
 
-                                            -- 2. Lọc bục đang ở trạng thái Prepare (Đã nhảy vào nhưng chưa bấm tạo)
                                             if surfaceGui.FmPrepare.Visible and dist < 12 then
                                                 isPreparingRoom = true
                                             end
 
-                                            -- 3. Lọc bục trống hoàn toàn
                                             if surfaceGui.FmEmpty.Visible and not autoJoinOthersEnabled then
                                                 if dist < closestEmptyDist then
                                                     closestEmptyDist = dist
@@ -291,15 +287,39 @@ return function(Window, Utils, WebhookModule)
                                     if currentPlayerCount >= targetPlayerCount then
                                         DungeonStatus:Set("Sảnh: Đủ " .. currentPlayerCount .. "/" .. targetPlayerCount .. " người! Đang Start...")
                                         isStartingDungeon = true
-                                        pcall(function() if _G.PathTool and _G.PathTool.AbyssSystem and _G.PathTool.ViewUtil then _G.PathTool.ViewUtil.DoRequest(_G.PathTool.AbyssSystem.ClientStartAbyss) end end)
-                                        if AbyssSystem and AbyssSystem.ClientStartAbyss then pcall(function() AbyssSystem.ClientStartAbyss() end) end
+                                        
+                                        -- QUAN TRỌNG: Chờ 1.5s để server đồng bộ TeamInfo và UI AbyssTeamView tải xong
+                                        task.wait(1.5)
+                                        
+                                        -- LỚP 1: Ép API của Game thông qua biến toàn cục getrenv() của Executor (Tỷ lệ ăn 100%)
+                                        pcall(function()
+                                            local CG = getrenv()._G
+                                            if CG and CG.PathTool and CG.PathTool.AbyssSystem and CG.PathTool.ViewUtil then
+                                                CG.PathTool.ViewUtil.DoRequest(CG.PathTool.AbyssSystem.ClientStartAbyss)
+                                            end
+                                        end)
+                                        
+                                        -- LỚP 2: Quét Click Chuột Ảo vào UI AbyssTeamView
+                                        local teamView = Utils.FindUIElementByName(playerGui, "AbyssTeamView")
+                                        if teamView then
+                                            local btStart = Utils.FindUIElementByName(teamView, "BtStart") or Utils.FindUIElementByName(teamView, "BtnStart")
+                                            if btStart and btStart.AbsoluteSize.X > 0 then
+                                                Utils.ClickButtonExact(btStart, "Nút Start")
+                                            end
+                                        end
+                                        
+                                        -- LỚP 3: Quét rộng các nút Start trên màn hình
                                         local startNames = {"BtStart", "BtnStart", "BtGo", "BtEnter"}
                                         for _, btnName in ipairs(startNames) do
                                             local btn = Utils.FindUIElementByName(playerGui, btnName)
-                                            if btn and btn.AbsoluteSize.X > 0 and btn.Visible then Utils.ClickButtonExact(btn, "Nút Start") break end
+                                            if btn and btn.AbsoluteSize.X > 0 and btn.Visible then Utils.ClickButtonExact(btn, "Nút Start (Rộng)") break end
                                         end
-                                        task.wait(6) isStartingDungeon = false
-                                    else DungeonStatus:Set("Sảnh: Đang chờ người " .. currentPlayerCount .. "/" .. targetPlayerCount) end
+                                        
+                                        task.wait(4.5) -- Đợi tổng cộng 6s cho map load xong
+                                        isStartingDungeon = false
+                                    else 
+                                        DungeonStatus:Set("Sảnh: Đang chờ người " .. currentPlayerCount .. "/" .. targetPlayerCount) 
+                                    end
 
                                 -- GIAI ĐOẠN 2: CHÂN ĐÃ CHẠM BỤC TRỐNG -> ĐỨNG YÊN BẤM CREATE
                                 elseif isPreparingRoom then
