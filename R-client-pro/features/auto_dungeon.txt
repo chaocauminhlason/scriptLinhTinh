@@ -1,6 +1,6 @@
 -- ====================================================================
 -- MODULE: DUNGEON AUTO (AUTO ATTACK, AUTO EXIT, AUTO JOIN & AUTO CREATE)
--- BẢN CẬP NHẬT: FIX TỌA ĐỘ CAO ĐỘ (Y-OFFSET) ĐỂ ĐÁP XUỐNG MƯỢT HƠN
+-- BẢN CẬP NHẬT: FULL HOÀN CHỈNH (TRIPLE-TRIGGER + ANTI SPAM START + FIX TỌA ĐỘ)
 -- ====================================================================
 return function(Window, Utils, WebhookModule)
     local Players = game:GetService("Players")
@@ -25,8 +25,7 @@ return function(Window, Utils, WebhookModule)
     
     local dungeonStuckTimer = 0
     local dungeonLastPosition = nil
-
-    local isStartingDungeon = false
+    local isStartingDungeon = false -- Cờ khoá (Debounce) để chống spam Start liên tục
 
     -- API Game
     local MonsterSystem = nil
@@ -282,7 +281,7 @@ return function(Window, Utils, WebhookModule)
                                                     if leaveAth and leaveAth:IsA("Attachment") then jumpOutTarget = leaveAth.WorldPosition end
                                                 elseif isOtherPlayer then 
                                                     if dist < 15 then alreadyInSomeoneRoom = true 
-                                                    elseif not roomToJoin then roomToJoin = targetPos + Vector3.new(0, 3, 0) end -- Hạ độ cao Join
+                                                    elseif not roomToJoin then roomToJoin = targetPos + Vector3.new(0, 3, 0) end 
                                                 end
                                             end
                                         end
@@ -291,14 +290,14 @@ return function(Window, Utils, WebhookModule)
                                         if surfaceGui.FmEmpty.Visible and not autoJoinOthersEnabled then
                                             local targetPos = (room:IsA("Model") and room:GetPivot().Position) or (room:IsA("BasePart") and room.Position)
                                             if targetPos and not emptyRoomToCreate then
-                                                emptyRoomToCreate = targetPos + Vector3.new(0, 3, 0) -- Hạ độ cao Create
+                                                emptyRoomToCreate = targetPos + Vector3.new(0, 3, 0) 
                                             end
                                         end
                                     end
                                 end
                             end
 
-                            -- THỰC THI
+                            -- THỰC THI CHÍNH
                             if autoJoinOthersEnabled then
                                 DungeonStatus:Set("Sảnh: Đang tìm phòng có người...")
                                 if shouldJumpOut then 
@@ -308,8 +307,8 @@ return function(Window, Utils, WebhookModule)
                                 end
 
                             elseif autoCreateEnabled then
-                                -- Thêm cờ khóa (debounce) để chống spam Start
-                                if isStartingDungeon then continue end
+                                -- Chống spam Start nếu server đang xử lý chuyển map
+                                if isStartingDungeon then return end
 
                                 if isMyRoom and myRoomNode then
                                     -- ĐÃ TẠO XONG -> Đếm người qua Attributes -> START
@@ -322,9 +321,9 @@ return function(Window, Utils, WebhookModule)
                                     
                                     if currentPlayerCount >= targetPlayerCount then
                                         DungeonStatus:Set("Sảnh: Đủ " .. currentPlayerCount .. "/" .. targetPlayerCount .. " người! Đang Start...")
-                                        isStartingDungeon = true -- KHOÁ VÒNG LẶP LẠI
+                                        isStartingDungeon = true -- Khóa cờ lại
                                         
-                                        -- Lớp 1: Gọi API Gốc
+                                        -- Lớp 1: Gọi API Gốc qua bộ Framework của Game (Chuẩn nhất)
                                         pcall(function()
                                             if _G.PathTool and _G.PathTool.AbyssSystem and _G.PathTool.ViewUtil then
                                                 _G.PathTool.ViewUtil.DoRequest(_G.PathTool.AbyssSystem.ClientStartAbyss)
@@ -336,7 +335,7 @@ return function(Window, Utils, WebhookModule)
                                             pcall(function() AbyssSystem.ClientStartAbyss() end)
                                         end
                                         
-                                        -- Lớp 3: Quét Click UI
+                                        -- Lớp 3: Quét Click UI thủ công
                                         local startNames = {"BtStart", "BtnStart", "BtGo", "BtEnter"}
                                         for _, btnName in ipairs(startNames) do
                                             local btn = Utils.FindUIElementByName(playerGui, btnName)
@@ -346,8 +345,8 @@ return function(Window, Utils, WebhookModule)
                                             end
                                         end
                                         
-                                        task.wait(6) -- Cho Server 6 giây để load map, chống spam lệnh.
-                                        isStartingDungeon = false -- Mở khoá
+                                        task.wait(6) -- Nghỉ 6 giây đợi map load, tránh spam rate limit
+                                        isStartingDungeon = false -- Mở khóa
                                     else
                                         DungeonStatus:Set("Sảnh: Đang chờ người " .. currentPlayerCount .. "/" .. targetPlayerCount)
                                     end
@@ -361,16 +360,17 @@ return function(Window, Utils, WebhookModule)
                                         task.wait(2)
                                     else
                                         DungeonStatus:Set("Sảnh: Đang thiết lập Độ Khó và Tạo...")
-                                        task.wait(1.5) 
+                                        task.wait(1.5) -- Chờ UI Game nảy lên ổn định
                                         
-                                        -- [ĐÃ FIX] Chuẩn hóa tên nút Độ Khó theo game
+                                        -- Chuẩn hóa tên nút Độ Khó ("NormalBtn", "HardBtn", "NightmareBtn")
                                         local diffMap = {"Normal", "Hard", "Nightmare"}
                                         local diffString = diffMap[targetDifficulty] or "Normal"
-                                        local diffBtnName = diffString .. "Btn" 
+                                        local diffBtnName = diffString .. "Btn"
                                         
                                         local diffBtn = nil
                                         local btCreate = nil
                                         
+                                        -- Quét kĩ bên trong UI Tạo phòng để tránh bấm nhầm
                                         for _, v in pairs(playerGui:GetDescendants()) do
                                             if v:IsA("GuiObject") and v.Visible then
                                                 if v.Name == diffBtnName and v.Parent and v.Parent.Name == "BtnFrame" then
@@ -381,14 +381,16 @@ return function(Window, Utils, WebhookModule)
                                             end
                                         end
                                         
+                                        -- 1. Chọn độ khó
                                         if diffBtn then
                                             Utils.ClickButtonExact(diffBtn, "Nút Độ Khó: " .. diffString)
                                             task.wait(0.5)
                                         end
                                         
+                                        -- 2. Click Tạo phòng
                                         if btCreate then
                                             Utils.ClickButtonExact(btCreate, "Nút Tạo Phòng")
-                                            task.wait(2.5) 
+                                            task.wait(2.5) -- Tăng độ trễ cho server xác lập quyền Owner
                                         end
                                     end
                                 end
