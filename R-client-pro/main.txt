@@ -36,9 +36,6 @@ end
 local Utils = SafeLoad('https://raw.githubusercontent.com/chaocauminhlason/scripts-linh-tinh/main/R-client-pro/core/utilities.txt')
 local WebhookModule = SafeLoad('https://raw.githubusercontent.com/chaocauminhlason/scripts-linh-tinh/main/R-client-pro/core/webhook.txt')
 
-if WebhookModule and WebhookModule.InitTab then
-    WebhookModule.InitTab(Window, Rayfield)
-end
 
 -- 2. Kéo các Features
 if Utils then
@@ -58,6 +55,10 @@ if Utils then
     local o = SafeLoad('https://raw.githubusercontent.com/chaocauminhlason/scripts-linh-tinh/main/R-client-pro/features/optimization.txt')
     if o then o(Window, Utils) end
 end
+
+    if WebhookModule and WebhookModule.InitTab then
+    WebhookModule.InitTab(Window, Rayfield)
+    end
 
 Rayfield:LoadConfiguration()
 Rayfield:Notify({ Title = "Thành Công!", Content = "Hệ thống R-Client Pro đã nạp đầy đủ Modules!", Duration = 5 })
